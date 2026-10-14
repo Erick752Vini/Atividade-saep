@@ -19,6 +19,12 @@ app.use('/api/users', usersRouter);
 const corredoresRouter = require('./routes/corredores');
 app.use('/api/corredores', corredoresRouter);
 
+const produtosRouter = require('./routes/produtos');
+app.use('/api/produtos', produtosRouter);
+
+const movimentacoesRouter = require('./routes/movimentacoes');
+app.use('/api/movimentacoes', movimentacoesRouter);
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../front-api', 'login.html'));
 });
