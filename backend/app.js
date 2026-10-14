@@ -11,13 +11,7 @@ app.use(cors({
     credentials: true
 }));
 
-app.use(express.static(path.join(__dirname, '../front-api')));
-
-const usersRouter = require('./routes/users');
-app.use('/api/users', usersRouter);
-
-const corredoresRouter = require('./routes/corredores');
-app.use('/api/corredores', corredoresRouter);
+// app.use(express.static(path.join(__dirname, '../front-api'))); // descomente quando o front estiver pronto
 
 const produtosRouter = require('./routes/produtos');
 app.use('/api/produtos', produtosRouter);
@@ -25,8 +19,8 @@ app.use('/api/produtos', produtosRouter);
 const movimentacoesRouter = require('./routes/movimentacoes');
 app.use('/api/movimentacoes', movimentacoesRouter);
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../front-api', 'login.html'));
-});
+// app.get('/', (req, res) => {                                         // descomente quando o front estiver pronto
+//     res.sendFile(path.join(__dirname, '../front-api', 'login.html'));
+// });
 
 module.exports = app;
