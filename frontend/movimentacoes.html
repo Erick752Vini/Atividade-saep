@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Movimentações | Sistema de Estoque SAEP</title>
+    <meta name="description" content="Gerenciamento de movimentações de estoque SAEP" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">📦</div>
+            <h1>SAEP</h1>
+            <p>Sistema de Estoque</p>
+        </div>
+
+        <nav class="sidebar-nav">
+            <p class="nav-label">Menu</p>
+            <a href="produtos.html" class="nav-item" id="nav-produtos">
+                <span class="nav-icon">🛒</span> Produtos
+            </a>
+            <a href="movimentacoes.html" class="nav-item active" id="nav-mov">
+                <span class="nav-icon">🔄</span> Movimentações
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <div class="main">
+
+        <!-- Topbar -->
+        <header class="topbar">
+            <div>
+                <div class="topbar-title">Movimentações</div>
+                <div class="topbar-subtitle">Entradas e saídas de estoque</div>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-primary" id="btn-nova-mov" onclick="abrirModalNovo()">
+                    ＋ Nova Movimentação
+                </button>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <main class="content">
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card blue">
+                    <span class="stat-icon">🔄</span>
+                    <span class="stat-value" id="stat-total">—</span>
+                    <span class="stat-label">Total de Movimentações</span>
+                </div>
+                <div class="stat-card green">
+                    <span class="stat-icon">📥</span>
+                    <span class="stat-value" id="stat-entradas">—</span>
+                    <span class="stat-label">Entradas</span>
+                </div>
+                <div class="stat-card orange">
+                    <span class="stat-icon">📤</span>
+                    <span class="stat-value" id="stat-saidas">—</span>
+                    <span class="stat-label">Saídas</span>
+                </div>
+                <div class="stat-card purple">
+                    <span class="stat-icon">📦</span>
+                    <span class="stat-value" id="stat-unidades">—</span>
+                    <span class="stat-label">Unidades Movimentadas</span>
+                </div>
+            </div>
+
+            <!-- Tabela -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Lista de Movimentações</span>
+                    <div class="filter-bar" style="margin:0; flex:1; justify-content:flex-end; flex-wrap:wrap; gap:8px;">
+                        <div class="search-wrap" style="max-width:220px;">
+                            <span class="search-icon">🔍</span>
+                            <input
+                                type="text"
+                                id="search-input"
+                                class="form-control"
+                                placeholder="Buscar produto..."
+                                oninput="filtrarTabela()"
+                            />
+                        </div>
+                        <select id="filtro-tipo" class="form-control" style="width:130px;" onchange="filtrarTabela()">
+                            <option value="">Todos os tipos</option>
+                            <option value="entrada">Entrada</option>
+                            <option value="saida">Saída</option>
+                        </select>
+                        <button class="btn btn-ghost btn-sm" onclick="carregarMovimentacoes()">
+                            🔄 Atualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table id="tabela-movimentacoes">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Produto</th>
+                                <th>Tipo</th>
+                                <th>Quantidade</th>
+                                <th>Dt. Entrada</th>
+                                <th>Dt. Saída</th>
+                                <th style="text-align:right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-movimentacoes">
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">⏳</div>
+                                        <strong>Carregando movimentações...</strong>
+                                        <p>Aguarde um momento</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- ===== MODAL CRIAR/EDITAR ===== -->
+<div class="modal-backdrop" id="modal-mov" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modal-titulo">Nova Movimentação</h2>
+            <button class="modal-close" onclick="fecharModal()" aria-label="Fechar">✕</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-mov" onsubmit="salvarMovimentacao(event)" novalidate>
+                <input type="hidden" id="mov-id" />
+
+                <div class="form-group">
+                    <label class="form-label" for="mov-produto">Produto *</label>
+                    <select id="mov-produto" class="form-control" required>
+                        <option value="">Selecione um produto…</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="mov-tipo">Tipo *</label>
+                        <select id="mov-tipo" class="form-control" required onchange="toggleDatas()">
+                            <option value="">Selecione…</option>
+                            <option value="entrada">📥 Entrada</option>
+                            <option value="saida">📤 Saída</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="mov-quantidade">Quantidade *</label>
+                        <input type="number" id="mov-quantidade" class="form-control" placeholder="0" min="1" required />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" id="group-dt-entrada">
+                        <label class="form-label" for="mov-dt-entrada">Data de Entrada</label>
+                        <input type="date" id="mov-dt-entrada" class="form-control" />
+                    </div>
+                    <div class="form-group" id="group-dt-saida">
+                        <label class="form-label" for="mov-dt-saida">Data de Saída</label>
+                        <input type="date" id="mov-dt-saida" class="form-control" />
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarMovimentacao(event)" id="btn-salvar">
+                💾 Salvar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL CONFIRMAR DELETE ===== -->
+<div class="modal-backdrop" id="modal-delete" role="dialog" aria-modal="true">
+    <div class="modal" style="max-width:380px;">
+        <div class="modal-header">
+            <h2>Remover Movimentação</h2>
+            <button class="modal-close" onclick="fecharModalDelete()">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-secondary)">
+                Tem certeza que deseja remover a movimentação
+                <strong id="delete-info" style="color:var(--text-primary)"></strong>?
+                Esta ação não pode ser desfeita.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="fecharModalDelete()">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirmar-delete" onclick="confirmarDelete()">
+                🗑️ Remover
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== TOASTS ===== -->
+<div id="toast-container"></div>
+
+<script>
+/* ============================================================
+   CONFIGURAÇÃO
+   ============================================================ */
+const API_BASE = 'http://localhost:3000/api';
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+let todasMovimentacoes = [];
+let todosProdutos      = [];
+let deletarId          = null;
+
+/* ============================================================
+   INICIALIZAÇÃO
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+    carregarMovimentacoes();
+    carregarProdutosSelect();
+
+    document.getElementById('modal-mov').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('modal-mov')) fecharModal();
+    });
+    document.getElementById('modal-delete').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('modal-delete')) fecharModalDelete();
+    });
+});
+
+/* ============================================================
+   API - MOVIMENTAÇÕES
+   ============================================================ */
+async function carregarMovimentacoes() {
+    const tbody = document.getElementById('tbody-movimentacoes');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7">
+                <div class="empty-state">
+                    <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px"></div>
+                    <p>Carregando movimentações...</p>
+                </div>
+            </td>
+        </tr>`;
+
+    try {
+        const res  = await fetch(`${API_BASE}/movimentacoes`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        todasMovimentacoes = data;
+        renderTabela(data);
+        atualizarStats(data);
+    } catch (err) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    <div class="empty-state">
+                        <div class="empty-icon">⚠️</div>
+                        <strong>Erro ao carregar movimentações</strong>
+                        <p>${err.message}</p>
+                    </div>
+                </td>
+            </tr>`;
+        toast('Erro ao conectar com o servidor', 'error');
+    }
+}
+
+async function carregarProdutosSelect() {
+    try {
+        const res  = await fetch(`${API_BASE}/produtos`);
+        if (!res.ok) return;
+        todosProdutos = await res.json();
+        popularSelectProduto();
+    } catch { /* silencioso */ }
+}
+
+function popularSelectProduto() {
+    const sel = document.getElementById('mov-produto');
+    const options = todosProdutos.map(p =>
+        `<option value="${p.id}">${escHtml(p.nome)}</option>`
+    ).join('');
+    sel.innerHTML = `<option value="">Selecione um produto…</option>${options}`;
+}
+
+async function salvarMovimentacao(e) {
+    if (e) e.preventDefault();
+
+    const id         = document.getElementById('mov-id').value;
+    const produto_id = document.getElementById('mov-produto').value;
+    const tipo       = document.getElementById('mov-tipo').value;
+    const quantidade = document.getElementById('mov-quantidade').value;
+    const dt_entrada = document.getElementById('mov-dt-entrada').value || null;
+    const dt_saida   = document.getElementById('mov-dt-saida').value   || null;
+
+    if (!produto_id || !tipo || !quantidade) {
+        toast('Preencha todos os campos obrigatórios', 'error');
+        return;
+    }
+
+    const payload = { produto_id: Number(produto_id), tipo, quantidade: Number(quantidade), dt_entrada, dt_saida };
+    const btn = document.getElementById('btn-salvar');
+    btn.innerHTML = '<span class="spinner"></span> Salvando…';
+    btn.disabled = true;
+
+    try {
+        const url    = id ? `${API_BASE}/movimentacoes/${id}` : `${API_BASE}/movimentacoes`;
+        const method = id ? 'PUT' : 'POST';
+        const res    = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.mensagem || `HTTP ${res.status}`);
+        }
+        toast(id ? 'Movimentação atualizada com sucesso!' : 'Movimentação registrada com sucesso!', 'success');
+        fecharModal();
+        carregarMovimentacoes();
+    } catch (err) {
+        toast(`Erro: ${err.message}`, 'error');
+    } finally {
+        btn.innerHTML = '💾 Salvar';
+        btn.disabled = false;
+    }
+}
+
+async function confirmarDelete() {
+    if (!deletarId) return;
+    const btn = document.getElementById('btn-confirmar-delete');
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_BASE}/movimentacoes/${deletarId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        toast('Movimentação removida com sucesso!', 'success');
+        fecharModalDelete();
+        carregarMovimentacoes();
+    } catch (err) {
+        toast(`Erro ao remover: ${err.message}`, 'error');
+    } finally {
+        btn.innerHTML = '🗑️ Remover';
+        btn.disabled = false;
+    }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderTabela(movs) {
+    const tbody = document.getElementById('tbody-movimentacoes');
+
+    if (movs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <strong>Nenhuma movimentação encontrada</strong>
+                        <p>Clique em "Nova Movimentação" para registrar</p>
+                    </div>
+                </td>
+            </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = movs.map(m => {
+        const tipoBadge = m.tipo === 'entrada'
+            ? `<span class="badge badge-green">📥 Entrada</span>`
+            : `<span class="badge badge-red">📤 Saída</span>`;
+
+        const fmtData = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '<span class="td-muted">—</span>';
+
+        return `
+        <tr>
+            <td class="td-muted">#${m.id}</td>
+            <td style="font-weight:600">${escHtml(m.produto)}</td>
+            <td>${tipoBadge}</td>
+            <td style="font-weight:600">${m.quantidade}</td>
+            <td>${fmtData(m.dt_entrada)}</td>
+            <td>${fmtData(m.dt_saida)}</td>
+            <td style="text-align:right">
+                <div style="display:flex;gap:6px;justify-content:flex-end">
+                    <button class="btn btn-ghost btn-sm btn-icon" onclick="editarMovimentacao(${m.id})" title="Editar">✏️</button>
+                    <button class="btn btn-danger btn-sm btn-icon" onclick="pedirDelete(${m.id},'#${m.id} – ${escHtml(m.produto)}')" title="Remover">🗑️</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function atualizarStats(movs) {
+    document.getElementById('stat-total').textContent     = movs.length;
+    const entradas = movs.filter(m => m.tipo === 'entrada');
+    const saidas   = movs.filter(m => m.tipo === 'saida');
+    document.getElementById('stat-entradas').textContent  = entradas.length;
+    document.getElementById('stat-saidas').textContent    = saidas.length;
+    const total = movs.reduce((s, m) => s + Number(m.quantidade), 0);
+    document.getElementById('stat-unidades').textContent  = total;
+}
+
+function filtrarTabela() {
+    const q    = document.getElementById('search-input').value.toLowerCase();
+    const tipo = document.getElementById('filtro-tipo').value;
+
+    const filtrados = todasMovimentacoes.filter(m => {
+        const matchQ    = m.produto.toLowerCase().includes(q);
+        const matchTipo = !tipo || m.tipo === tipo;
+        return matchQ && matchTipo;
+    });
+    renderTabela(filtrados);
+}
+
+/* ============================================================
+   MODAL CRIAR/EDITAR
+   ============================================================ */
+function abrirModalNovo() {
+    document.getElementById('modal-titulo').textContent = 'Nova Movimentação';
+    document.getElementById('mov-id').value             = '';
+    document.getElementById('form-mov').reset();
+    popularSelectProduto();
+    document.getElementById('modal-mov').classList.add('open');
+    document.getElementById('mov-produto').focus();
+}
+
+function editarMovimentacao(id) {
+    const m = todasMovimentacoes.find(x => x.id === id);
+    if (!m) return;
+    document.getElementById('modal-titulo').textContent  = 'Editar Movimentação';
+    document.getElementById('mov-id').value              = m.id;
+    popularSelectProduto();
+    document.getElementById('mov-produto').value         = m.produto_id;
+    document.getElementById('mov-tipo').value            = m.tipo;
+    document.getElementById('mov-quantidade').value      = m.quantidade;
+    document.getElementById('mov-dt-entrada').value      = m.dt_entrada ? m.dt_entrada.slice(0,10) : '';
+    document.getElementById('mov-dt-saida').value        = m.dt_saida   ? m.dt_saida.slice(0,10)   : '';
+    document.getElementById('modal-mov').classList.add('open');
+}
+
+function fecharModal() {
+    document.getElementById('modal-mov').classList.remove('open');
+}
+
+function toggleDatas() {
+    // ambos os campos sempre visíveis; poderia condicionar por tipo se desejado
+}
+
+/* ============================================================
+   MODAL DELETE
+   ============================================================ */
+function pedirDelete(id, info) {
+    deletarId = id;
+    document.getElementById('delete-info').textContent = info;
+    document.getElementById('modal-delete').classList.add('open');
+}
+function fecharModalDelete() {
+    deletarId = null;
+    document.getElementById('modal-delete').classList.remove('open');
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function toast(msg, tipo = 'info') {
+    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+    const el = document.createElement('div');
+    el.className = `toast ${tipo}`;
+    el.innerHTML = `<span class="toast-icon">${icons[tipo]}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+}
+
+/* ============================================================
+   UTIL
+   ============================================================ */
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+}
+</script>
+
+</body>
+</html>
