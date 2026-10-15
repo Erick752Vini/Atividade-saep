@@ -1,18 +1,11 @@
 import type { Config, Context } from "@netlify/functions";
-import { eq } from "drizzle-orm";
-import { db } from "../../db/index.js";
-import { movimentacoes, produtos } from "../../db/schema.js";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import { pool } from "../../db/mysql.js";
 
-// Mesmo formato do SELECT com JOIN da API original
-const colunas = {
-  id: movimentacoes.id,
-  produto: produtos.nome,
-  produto_id: movimentacoes.produtoId,
-  dt_entrada: movimentacoes.dtEntrada,
-  dt_saida: movimentacoes.dtSaida,
-  tipo: movimentacoes.tipo,
-  quantidade: movimentacoes.quantidade,
-};
+const SELECT_BASE = `
+  SELECT m.id, p.nome AS produto, m.produto_id, m.dt_entrada, m.dt_saida, m.tipo, m.quantidade
+  FROM movimentacoes m
+  INNER JOIN produtos p ON p.id = m.produto_id`;
 
 const paraData = (valor: unknown) => (valor ? new Date(String(valor)) : null);
 
@@ -20,55 +13,47 @@ export default async (req: Request, context: Context) => {
   const id = context.params.id ? Number(context.params.id) : null;
 
   try {
-    // GET - Listar todas as movimentações / buscar por ID
     if (req.method === "GET") {
-      const consulta = db
-        .select(colunas)
-        .from(movimentacoes)
-        .innerJoin(produtos, eq(movimentacoes.produtoId, produtos.id));
       if (id === null) {
-        return Response.json(await consulta.orderBy(movimentacoes.id));
+        const [rows] = await pool.query<RowDataPacket[]>(`${SELECT_BASE} ORDER BY m.id`);
+        return Response.json(rows);
       }
-      const [mov] = await consulta.where(eq(movimentacoes.id, id));
-      if (!mov) return Response.json({ mensagem: "Movimentação não encontrada" }, { status: 404 });
-      return Response.json(mov);
+      const [rows] = await pool.query<RowDataPacket[]>(`${SELECT_BASE} WHERE m.id = ?`, [id]);
+      if (rows.length === 0) return Response.json({ mensagem: "Movimentação não encontrada" }, { status: 404 });
+      return Response.json(rows[0]);
     }
 
-    // POST - Criar nova movimentação
     if (req.method === "POST" && id === null) {
       const { produto_id, dt_entrada, dt_saida, tipo, quantidade } = await req.json();
       if (!produto_id || !tipo || !quantidade) {
         return Response.json({ mensagem: "Campos obrigatórios: produto_id, tipo, quantidade" }, { status: 400 });
       }
-      const [criada] = await db
-        .insert(movimentacoes)
-        .values({ produtoId: produto_id, dtEntrada: paraData(dt_entrada), dtSaida: paraData(dt_saida), tipo, quantidade })
-        .returning({ id: movimentacoes.id });
+      const [r] = await pool.query<ResultSetHeader>(
+        "INSERT INTO movimentacoes (produto_id, dt_entrada, dt_saida, tipo, quantidade) VALUES (?, ?, ?, ?, ?)",
+        [produto_id, paraData(dt_entrada), paraData(dt_saida), tipo, quantidade],
+      );
       return Response.json(
-        { mensagem: "Movimentação registrada com sucesso", id: criada.id, produto_id, dt_entrada, dt_saida, tipo, quantidade },
+        { mensagem: "Movimentação registrada com sucesso", id: r.insertId, produto_id, dt_entrada, dt_saida, tipo, quantidade },
         { status: 201 },
       );
     }
 
-    // PUT - Atualizar movimentação por ID
     if (req.method === "PUT" && id !== null) {
       const { produto_id, dt_entrada, dt_saida, tipo, quantidade } = await req.json();
       if (!produto_id || !tipo || !quantidade) {
         return Response.json({ mensagem: "Campos obrigatórios: produto_id, tipo, quantidade" }, { status: 400 });
       }
-      const atualizadas = await db
-        .update(movimentacoes)
-        .set({ produtoId: produto_id, dtEntrada: paraData(dt_entrada), dtSaida: paraData(dt_saida), tipo, quantidade })
-        .where(eq(movimentacoes.id, id))
-        .returning();
-      if (atualizadas.length === 0) return Response.json({ mensagem: "Movimentação não encontrada" }, { status: 404 });
+      const [r] = await pool.query<ResultSetHeader>(
+        "UPDATE movimentacoes SET produto_id = ?, dt_entrada = ?, dt_saida = ?, tipo = ?, quantidade = ? WHERE id = ?",
+        [produto_id, paraData(dt_entrada), paraData(dt_saida), tipo, quantidade, id],
+      );
+      if (r.affectedRows === 0) return Response.json({ mensagem: "Movimentação não encontrada" }, { status: 404 });
       return Response.json({ mensagem: "Movimentação atualizada com sucesso" });
     }
 
-    // DELETE - Remover movimentação por ID
     if (req.method === "DELETE" && id !== null) {
-      const removidas = await db.delete(movimentacoes).where(eq(movimentacoes.id, id)).returning();
-      if (removidas.length === 0) return Response.json({ mensagem: "Movimentação não encontrada" }, { status: 404 });
+      const [r] = await pool.query<ResultSetHeader>("DELETE FROM movimentacoes WHERE id = ?", [id]);
+      if (r.affectedRows === 0) return Response.json({ mensagem: "Movimentação não encontrada" }, { status: 404 });
       return Response.json({ mensagem: "Movimentação removida com sucesso" });
     }
 
